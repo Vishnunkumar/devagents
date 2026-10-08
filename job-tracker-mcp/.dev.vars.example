@@ -1,0 +1,10 @@
+# Copy to .dev.vars (gitignored) for local `npm run dev`.
+# Project URL: Supabase → Project Settings → API → Project URL
+# Publishable key: same page (browser / MCP with RLS policies)
+# Service role: same page — preferred for Worker deploy (bypasses RLS; never expose in UI)
+
+PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+
+# Optional for Worker (recommended for production):
+# SUPABASE_SERVICE_ROLE_KEY=

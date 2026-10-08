@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f4f6f4;
+  --bg-elevated: #ffffff;
+  --ink: #15201c;
+  --ink-muted: #5a6b63;
+  --line: #d5ddd8;
+  --accent: #0f6b4c;
+  --accent-soft: #dceee6;
+  --warn: #9a5b12;
+  --warn-soft: #f4e6d0;
+  --danger: #8b2e2e;
+  --danger-soft: #f3dede;
+  --shadow: 0 1px 2px rgb(21 32 28 / 6%), 0 8px 24px rgb(21 32 28 / 5%);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, #e4f1ea 0%, transparent 55%),
+    radial-gradient(900px 400px at 90% 0%, #efe8d8 0%, transparent 50%),
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}

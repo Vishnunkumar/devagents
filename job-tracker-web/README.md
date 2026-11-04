@@ -3,8 +3,10 @@
 Next.js UI for the relocation job pipeline stored in Supabase.
 
 - Kanban by status
-- Filters: region, visa yes/likely, search
-- Edit status, notes, visa, follow-up in a side drawer
+- Filters: region, individual visa sponsorship statuses, discovered-date range, and text search
+- Sort jobs by discovered date (newest or oldest first)
+- Edit status, notes, visa, and follow-up in a side drawer
+- Delete a job from Supabase from its detail drawer (confirmation required)
 
 Search/discovery stays in Cursor via `web-search-mcp` + `job-tracker-mcp`.
 
@@ -22,6 +24,8 @@ copy .env.example .env.local
 
 - `schema.sql`
 - `schema-rls-policies.sql`
+
+The Supabase RLS policies must permit the connected user to delete rows from `jobs` for the delete action to work.
 
 ```bash
 npm install

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { fetchJobs, updateJob } from "@/lib/supabase";
-import type { Job, Region, Status } from "@/lib/types";
+import { deleteJob, fetchJobs, updateJob } from "@/lib/supabase";
+import type { Job, Region, Status, VisaSponsorship } from "@/lib/types";
 import {
   REGION_LABELS,
   REGIONS,
@@ -27,10 +27,14 @@ export function PipelineBoard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [region, setRegion] = useState<Region | "all">("all");
-  const [visaOnly, setVisaOnly] = useState(false);
+  const [visaFilter, setVisaFilter] = useState<VisaSponsorship | "all">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Job | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
 
   const load = useCallback(async () => {
@@ -51,24 +55,25 @@ export function PipelineBoard() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return jobs.filter((j) => {
-      if (region !== "all" && j.region !== region) return false;
-      if (
-        visaOnly &&
-        j.visa_sponsorship !== "yes" &&
-        j.visa_sponsorship !== "likely"
-      ) {
-        return false;
-      }
-      if (!q) return true;
-      return (
-        j.title.toLowerCase().includes(q) ||
-        j.company.toLowerCase().includes(q) ||
-        j.location.toLowerCase().includes(q) ||
-        j.country.toLowerCase().includes(q)
-      );
-    });
-  }, [jobs, region, visaOnly, query]);
+    return jobs
+      .filter((j) => {
+        if (region !== "all" && j.region !== region) return false;
+        if (visaFilter !== "all" && j.visa_sponsorship !== visaFilter) return false;
+        if (dateFrom && j.discovered_date < dateFrom) return false;
+        if (dateTo && j.discovered_date > dateTo) return false;
+        if (!q) return true;
+        return (
+          j.title.toLowerCase().includes(q) ||
+          j.company.toLowerCase().includes(q) ||
+          j.location.toLowerCase().includes(q) ||
+          j.country.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const comparison = (a.discovered_date || "").localeCompare(b.discovered_date || "");
+        return dateSort === "newest" ? -comparison : comparison;
+      });
+  }, [jobs, region, visaFilter, dateFrom, dateTo, dateSort, query]);
 
   const counts = useMemo(() => {
     const byStatus: Record<string, number> = {};
@@ -77,9 +82,7 @@ export function PipelineBoard() {
     return byStatus;
   }, [filtered]);
 
-  const columns = showClosed
-    ? STATUSES
-    : ACTIVE_COLUMNS;
+  const columns = showClosed ? STATUSES : ACTIVE_COLUMNS;
 
   async function handleSave(id: string, patch: Record<string, unknown>) {
     setSaving(true);
@@ -89,6 +92,21 @@ export function PipelineBoard() {
       setSelected(updated);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteJob(id);
+      setJobs((prev) => prev.filter((j) => j.id !== id));
+      setSelected(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      throw e;
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -135,6 +153,7 @@ export function PipelineBoard() {
             value={region}
             onChange={(e) => setRegion(e.target.value as Region | "all")}
             className="rounded-lg border border-line bg-bg px-3 py-2 text-sm"
+            aria-label="Filter by region"
           >
             <option value="all">All regions</option>
             {REGIONS.map((r) => (
@@ -143,14 +162,49 @@ export function PipelineBoard() {
               </option>
             ))}
           </select>
+          <select
+            value={visaFilter}
+            onChange={(e) => setVisaFilter(e.target.value as VisaSponsorship | "all")}
+            className="rounded-lg border border-line bg-bg px-3 py-2 text-sm"
+            aria-label="Filter by visa sponsorship"
+          >
+            <option value="all">All visa statuses</option>
+            <option value="yes">Visa yes</option>
+            <option value="likely">Visa likely</option>
+            <option value="no">No visa sponsorship</option>
+            <option value="unknown">Visa unknown</option>
+          </select>
           <label className="flex items-center gap-2 rounded-lg border border-line bg-bg px-3 py-2 text-sm">
+            <span className="text-ink-muted">Discovered from</span>
             <input
-              type="checkbox"
-              checked={visaOnly}
-              onChange={(e) => setVisaOnly(e.target.checked)}
+              type="date"
+              value={dateFrom}
+              max={dateTo || undefined}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="min-w-0 bg-transparent"
+              aria-label="Discovered date from"
             />
-            Visa yes / likely
           </label>
+          <label className="flex items-center gap-2 rounded-lg border border-line bg-bg px-3 py-2 text-sm">
+            <span className="text-ink-muted">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              min={dateFrom || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="min-w-0 bg-transparent"
+              aria-label="Discovered date to"
+            />
+          </label>
+          <select
+            value={dateSort}
+            onChange={(e) => setDateSort(e.target.value as "newest" | "oldest")}
+            className="rounded-lg border border-line bg-bg px-3 py-2 text-sm"
+            aria-label="Sort by discovered date"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
           <label className="flex items-center gap-2 rounded-lg border border-line bg-bg px-3 py-2 text-sm">
             <input
               type="checkbox"
@@ -159,13 +213,27 @@ export function PipelineBoard() {
             />
             Show closed
           </label>
+          {(dateFrom || dateTo || visaFilter !== "all" || region !== "all") && (
+            <button
+              type="button"
+              onClick={() => {
+                setDateFrom("");
+                setDateTo("");
+                setVisaFilter("all");
+                setRegion("all");
+              }}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-accent hover:bg-accent-soft"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       </header>
 
       <main className="flex-1 overflow-x-auto px-4 py-5 md:px-8">
         {error ? (
           <div className="mx-auto max-w-xl rounded-xl border border-danger/30 bg-danger-soft p-4 text-sm text-danger">
-            <p className="font-semibold">Could not load jobs</p>
+            <p className="font-semibold">Could not complete the request</p>
             <p className="mt-1">{error}</p>
             <p className="mt-2 text-ink-muted">
               Check env vars and that RLS policies are applied in Supabase.
@@ -194,18 +262,14 @@ export function PipelineBoard() {
                       {counts[status] || 0}
                     </span>
                   </div>
-                  <div className="flex max-h-[calc(100vh-260px)] flex-col gap-2 overflow-y-auto p-2">
+                  <div className="flex max-h-[calc(100vh-320px)] flex-col gap-2 overflow-y-auto p-2">
                     {colJobs.length === 0 ? (
                       <p className="px-1 py-3 text-center text-xs text-ink-muted">
                         Empty
                       </p>
                     ) : (
                       colJobs.map((job) => (
-                        <JobCard
-                          key={job.id}
-                          job={job}
-                          onSelect={setSelected}
-                        />
+                        <JobCard key={job.id} job={job} onSelect={setSelected} />
                       ))
                     )}
                   </div>
@@ -219,8 +283,10 @@ export function PipelineBoard() {
       <JobDrawer
         job={selected}
         saving={saving}
+        deleting={deleting}
         onClose={() => setSelected(null)}
         onSave={handleSave}
+        onDelete={handleDelete}
       />
     </div>
   );

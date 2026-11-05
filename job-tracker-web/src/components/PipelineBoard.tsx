@@ -103,9 +103,73 @@ export function PipelineBoard() {
       await deleteJob(id);
       setJobs((prev) => prev.filter((j) => j.id !== id));
       setSelected(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       throw e;
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function toggleJobSelection(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleColumnSelection(ids: string[], checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }
+
+  async function handleBulkDelete(ids: string[]) {
+    const uniqueIds = [...new Set(ids)];
+    if (uniqueIds.length === 0 || deleting) return;
+
+    const confirmed = window.confirm(
+      `Delete ${uniqueIds.length} selected job(s)? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError("");
+    try {
+      const results = await Promise.allSettled(uniqueIds.map((id) => deleteJob(id)));
+      const deletedIds = uniqueIds.filter((_, index) => results[index].status === "fulfilled");
+      const failedCount = results.length - deletedIds.length;
+
+      if (deletedIds.length > 0) {
+        const deleted = new Set(deletedIds);
+        setJobs((prev) => prev.filter((job) => !deleted.has(job.id)));
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          for (const id of deletedIds) next.delete(id);
+          return next;
+        });
+        setSelected((prev) => (prev && deleted.has(prev.id) ? null : prev));
+      }
+
+      if (failedCount > 0) {
+        setError(
+          `Deleted ${deletedIds.length} job(s), but ${failedCount} could not be deleted. Failed jobs remain in the pipeline; please retry.`,
+        );
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setDeleting(false);
     }

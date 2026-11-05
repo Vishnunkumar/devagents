@@ -36,6 +36,7 @@ export function PipelineBoard() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -255,12 +256,31 @@ export function PipelineBoard() {
                   className="flex w-[280px] shrink-0 flex-col rounded-2xl border border-line/70 bg-bg/60"
                 >
                   <div className="flex items-center justify-between border-b border-line/70 px-3 py-2.5">
-                    <h2 className="text-sm font-semibold text-ink">
-                      {STATUS_LABELS[status]}
-                    </h2>
-                    <span className="rounded-md bg-bg-elevated px-1.5 py-0.5 text-xs font-medium text-ink-muted">
-                      {counts[status] || 0}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select all ${STATUS_LABELS[status]} jobs`}
+                        checked={colJobs.length > 0 && colJobs.every((job) => selectedIds.has(job.id))}
+                        onChange={(e) => toggleColumnSelection(colJobs.map((job) => job.id), e.target.checked)}
+                        disabled={colJobs.length === 0 || deleting}
+                      />
+                      <h2 className="text-sm font-semibold text-ink">
+                        {STATUS_LABELS[status]}
+                      </h2>
+                      <span className="rounded-md bg-bg-elevated px-1.5 py-0.5 text-xs font-medium text-ink-muted">
+                        {counts[status] || 0}
+                      </span>
+                    </div>
+                    {colJobs.some((job) => selectedIds.has(job.id)) ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleBulkDelete(colJobs.filter((job) => selectedIds.has(job.id)).map((job) => job.id))}
+                        disabled={deleting}
+                        className="text-xs font-semibold text-danger hover:underline disabled:opacity-50"
+                      >
+                        Delete selected ({colJobs.filter((job) => selectedIds.has(job.id)).length})
+                      </button>
+                    ) : null}
                   </div>
                   <div className="flex max-h-[calc(100vh-320px)] flex-col gap-2 overflow-y-auto p-2">
                     {colJobs.length === 0 ? (
@@ -269,7 +289,19 @@ export function PipelineBoard() {
                       </p>
                     ) : (
                       colJobs.map((job) => (
-                        <JobCard key={job.id} job={job} onSelect={setSelected} />
+                        <div key={job.id} className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(job.id)}
+                            onChange={() => toggleJobSelection(job.id)}
+                            aria-label={`Select ${job.title} at ${job.company}`}
+                            className="mt-4 shrink-0"
+                            disabled={deleting}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <JobCard job={job} onSelect={setSelected} />
+                          </div>
+                        </div>
                       ))
                     )}
                   </div>

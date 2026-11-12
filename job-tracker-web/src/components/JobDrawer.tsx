@@ -8,13 +8,17 @@ import { REGION_LABELS, STATUSES, STATUS_LABELS, VISA, WORK_MODES } from "@/lib/
 export function JobDrawer({
   job,
   saving,
+  deleting,
   onClose,
   onSave,
+  onDelete,
 }: {
   job: Job | null;
   saving: boolean;
+  deleting: boolean;
   onClose: () => void;
   onSave: (id: string, patch: Record<string, unknown>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
   const [status, setStatus] = useState<Status>("discovered");
   const [notes, setNotes] = useState("");
@@ -51,6 +55,18 @@ export function JobDrawer({
         salary,
         follow_up_date: followUp || null,
       });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  async function handleDelete() {
+    if (!job || !window.confirm(`Delete "${job.title}" at ${job.company}? This cannot be undone.`)) {
+      return;
+    }
+    setError("");
+    try {
+      await onDelete(job.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -182,17 +198,26 @@ export function JobDrawer({
           ) : null}
         </div>
 
-        <footer className="flex gap-2 border-t border-line px-5 py-4">
+        <footer className="flex flex-wrap gap-2 border-t border-line px-5 py-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink"
+            disabled={saving || deleting}
+            className="rounded-lg border border-line px-4 py-2 text-sm font-medium text-ink disabled:opacity-60"
           >
             Cancel
           </button>
           <button
             type="button"
-            disabled={saving}
+            onClick={handleDelete}
+            disabled={saving || deleting}
+            className="rounded-lg border border-danger/40 px-4 py-2 text-sm font-semibold text-danger disabled:opacity-60"
+          >
+            {deleting ? "Deleting…" : "Delete job"}
+          </button>
+          <button
+            type="button"
+            disabled={saving || deleting}
             onClick={handleSave}
             className="flex-1 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >

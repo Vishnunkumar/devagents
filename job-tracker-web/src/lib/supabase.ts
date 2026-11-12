@@ -76,3 +76,15 @@ export async function updateJob(id: string, patch: Record<string, unknown>): Pro
   if (error) throw error;
   return data as Job;
 }
+
+export async function deleteJob(id: string): Promise<void> {
+  const { data, error } = await getSupabase()
+    .from("jobs")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error("Job was not deleted. Check your Supabase permissions.");
+}

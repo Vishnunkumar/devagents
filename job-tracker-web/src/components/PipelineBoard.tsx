@@ -45,6 +45,7 @@ export function PipelineBoard() {
   const [dateSort, setDateSort] = useState<"newest" | "oldest">("newest");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Job | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
@@ -101,6 +102,27 @@ export function PipelineBoard() {
     writeStoredUserId(nextId);
     setUserId(nextId);
     setSelected(null);
+    setSelectedIds(new Set());
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleColumn(ids: string[], checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
   }
 
   const filtered = useMemo(() => {
@@ -152,9 +174,54 @@ export function PipelineBoard() {
       await deleteJob(id);
       setJobs((prev) => prev.filter((j) => j.id !== id));
       setSelected(null);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       throw e;
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleDeleteMany(ids: string[]) {
+    const unique = [...new Set(ids)];
+    if (unique.length === 0 || deleting) return;
+    if (
+      !window.confirm(
+        `Delete ${unique.length} selected job(s)? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    setError("");
+    try {
+      const results = await Promise.allSettled(unique.map((id) => deleteJob(id)));
+      const deleted = unique.filter((_, i) => results[i].status === "fulfilled");
+      const failed = results.length - deleted.length;
+      if (deleted.length > 0) {
+        const gone = new Set(deleted);
+        setJobs((prev) => prev.filter((j) => !gone.has(j.id)));
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          for (const id of deleted) next.delete(id);
+          return next;
+        });
+        setSelected((current) =>
+          current && gone.has(current.id) ? null : current,
+        );
+      }
+      if (failed > 0) {
+        setError(
+          `Deleted ${deleted.length} job(s), but ${failed} could not be deleted. Failed jobs remain in the pipeline; please retry.`,
+        );
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setDeleting(false);
     }
@@ -325,12 +392,46 @@ export function PipelineBoard() {
                   className="flex w-[280px] shrink-0 flex-col rounded-2xl border border-line/70 bg-bg/60"
                 >
                   <div className="flex items-center justify-between border-b border-line/70 px-3 py-2.5">
-                    <h2 className="text-sm font-semibold text-ink">
-                      {STATUS_LABELS[status]}
-                    </h2>
-                    <span className="rounded-md bg-bg-elevated px-1.5 py-0.5 text-xs font-medium text-ink-muted">
-                      {counts[status] || 0}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select all ${STATUS_LABELS[status]} jobs`}
+                        checked={
+                          colJobs.length > 0 &&
+                          colJobs.every((job) => selectedIds.has(job.id))
+                        }
+                        disabled={colJobs.length === 0 || deleting}
+                        onChange={(e) =>
+                          toggleColumn(
+                            colJobs.map((job) => job.id),
+                            e.target.checked,
+                          )
+                        }
+                      />
+                      <h2 className="text-sm font-semibold text-ink">
+                        {STATUS_LABELS[status]}
+                      </h2>
+                      <span className="rounded-md bg-bg-elevated px-1.5 py-0.5 text-xs font-medium text-ink-muted">
+                        {counts[status] || 0}
+                      </span>
+                    </div>
+                    {colJobs.some((job) => selectedIds.has(job.id)) ? (
+                      <button
+                        type="button"
+                        disabled={deleting}
+                        onClick={() =>
+                          void handleDeleteMany(
+                            colJobs
+                              .filter((job) => selectedIds.has(job.id))
+                              .map((job) => job.id),
+                          )
+                        }
+                        className="text-xs font-semibold text-danger hover:underline disabled:opacity-50"
+                      >
+                        Delete selected (
+                        {colJobs.filter((job) => selectedIds.has(job.id)).length})
+                      </button>
+                    ) : null}
                   </div>
                   <div className="flex max-h-[calc(100vh-320px)] flex-col gap-2 overflow-y-auto p-2">
                     {colJobs.length === 0 ? (
@@ -339,7 +440,19 @@ export function PipelineBoard() {
                       </p>
                     ) : (
                       colJobs.map((job) => (
-                        <JobCard key={job.id} job={job} onSelect={setSelected} />
+                        <div key={job.id} className="flex items-start gap-2">
+                          <input
+                            type="checkbox"
+                            className="mt-4 shrink-0"
+                            aria-label={`Select ${job.title} at ${job.company}`}
+                            checked={selectedIds.has(job.id)}
+                            disabled={deleting}
+                            onChange={() => toggleSelected(job.id)}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <JobCard job={job} onSelect={setSelected} />
+                          </div>
+                        </div>
                       ))
                     )}
                   </div>

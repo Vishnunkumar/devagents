@@ -3,6 +3,7 @@ import type { JobRecord } from "./types";
 /** PostgREST / `public.jobs` columns */
 export interface DbJobRow {
   id: string;
+  user_id: string;
   job_url: string;
   title: string;
   company: string;
@@ -28,6 +29,7 @@ export interface DbJobRow {
 export function rowToJob(row: DbJobRow): JobRecord {
   return {
     record_id: row.id,
+    user_id: row.user_id ?? "",
     url: row.job_url ?? "",
     title: row.title ?? "",
     company: row.company ?? "",
@@ -54,6 +56,7 @@ export function rowToJob(row: DbJobRow): JobRecord {
 export function toCompact(job: JobRecord) {
   return {
     record_id: job.record_id,
+    user_id: job.user_id,
     url: job.url,
     title: job.title,
     company: job.company,

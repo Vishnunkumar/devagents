@@ -3,6 +3,7 @@
 Next.js UI for the relocation job pipeline stored in Supabase.
 
 - Kanban by status
+- Profile dropdown (loads `public.users`; jobs filtered by `user_id`)
 - Filters: region, visa yes/likely, search
 - Edit status, notes, visa, follow-up in a side drawer
 
@@ -20,7 +21,7 @@ copy .env.example .env.local
 
 3. Ensure tables + RLS exist (from `../job-tracker-mcp`):
 
-- `schema.sql`
+- `schema.sql` (new) or `schema-migration-002-users.sql` (existing DB)
 - `schema-rls-policies.sql`
 
 ```bash

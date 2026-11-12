@@ -18,7 +18,7 @@ const TOOLS = [
 
 function createServer(env: Env) {
   const server = new McpServer(
-    { name: "job-tracker", version: "0.2.0" },
+    { name: "job-tracker", version: "0.3.0" },
     { instructions: INSTRUCTIONS },
   );
   registerTracker(server, env);

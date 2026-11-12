@@ -2,8 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { fetchJobs, updateJob } from "@/lib/supabase";
-import type { Job, Region, Status } from "@/lib/types";
+import {
+  fetchJobs,
+  fetchUsers,
+  updateJob,
+} from "@/lib/supabase";
+import {
+  pickInitialUserId,
+  readStoredUserId,
+  writeStoredUserId,
+} from "@/lib/selectedUser";
+import type { Job, Region, Status, TrackerUser } from "@/lib/types";
 import {
   REGION_LABELS,
   REGIONS,
@@ -23,6 +32,8 @@ const ACTIVE_COLUMNS: Status[] = [
 ];
 
 export function PipelineBoard() {
+  const [users, setUsers] = useState<TrackerUser[]>([]);
+  const [userId, setUserId] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,11 +44,29 @@ export function PipelineBoard() {
   const [saving, setSaving] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
 
-  const load = useCallback(async () => {
+  const activeUser = useMemo(
+    () => users.find((u) => u.user_id === userId) ?? null,
+    [users, userId],
+  );
+
+  const loadUsers = useCallback(async () => {
+    const rows = await fetchUsers();
+    setUsers(rows);
+    const initial = pickInitialUserId(rows, readStoredUserId());
+    if (initial) {
+      writeStoredUserId(initial);
+      setUserId(initial);
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadJobs = useCallback(async (profileId: string) => {
+    if (!profileId) return;
     setLoading(true);
     setError("");
     try {
-      setJobs(await fetchJobs());
+      setJobs(await fetchJobs(profileId));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -46,8 +75,28 @@ export function PipelineBoard() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void (async () => {
+      setError("");
+      try {
+        await loadUsers();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        setLoading(false);
+      }
+    })();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    if (!userId) return;
+    void loadJobs(userId);
+  }, [userId, loadJobs]);
+
+  function handleProfileChange(nextId: string) {
+    if (nextId === userId) return;
+    writeStoredUserId(nextId);
+    setUserId(nextId);
+    setSelected(null);
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -104,7 +153,9 @@ export function PipelineBoard() {
               Job Tracker
             </h1>
             <p className="mt-1 max-w-xl text-sm text-ink-muted">
-              Pipeline from Cursor search → Supabase. Update status here as you apply.
+              {activeUser
+                ? `Pipeline for ${activeUser.name}. Update status as you apply.`
+                : "Pipeline from Cursor search → Supabase."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -116,8 +167,9 @@ export function PipelineBoard() {
             </span>
             <button
               type="button"
-              onClick={() => void load()}
-              className="rounded-full border border-line bg-bg-elevated px-3 py-1 font-medium text-ink hover:border-accent"
+              onClick={() => userId && void loadJobs(userId)}
+              disabled={!userId}
+              className="rounded-full border border-line bg-bg-elevated px-3 py-1 font-medium text-ink hover:border-accent disabled:opacity-50"
             >
               Refresh
             </button>
@@ -125,6 +177,23 @@ export function PipelineBoard() {
         </div>
 
         <div className="mx-auto mt-5 flex max-w-[1600px] flex-wrap gap-2">
+          <select
+            value={userId}
+            onChange={(e) => handleProfileChange(e.target.value)}
+            disabled={users.length === 0}
+            className="min-w-[200px] rounded-lg border border-line bg-bg px-3 py-2 text-sm font-medium"
+            aria-label="Profile"
+          >
+            {users.length === 0 ? (
+              <option value="">No profiles</option>
+            ) : (
+              users.map((u) => (
+                <option key={u.user_id} value={u.user_id}>
+                  {u.name}
+                </option>
+              ))
+            )}
+          </select>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

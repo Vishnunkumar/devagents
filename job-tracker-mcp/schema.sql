@@ -1,8 +1,20 @@
--- Paste once in Supabase → SQL Editor → Run.
+-- Paste once in Supabase → SQL Editor → Run (fresh install).
 -- Service role (Worker) bypasses RLS. Do not put the service role key in a browser UI.
+-- Existing DBs: use schema-migration-002-users.sql instead of re-running this wholesale.
+
+create table if not exists public.users (
+  user_id text primary key,
+  name text not null,
+  persona_json jsonb not null default '{}'::jsonb,
+  role text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
 create table if not exists public.jobs (
   id uuid primary key default gen_random_uuid(),
+  user_id text not null references public.users (user_id)
+    on update cascade on delete restrict,
   job_url text not null,
   title text not null,
   company text not null,
@@ -32,9 +44,10 @@ create table if not exists public.jobs (
   created_at timestamptz not null default now()
 );
 
-create unique index if not exists jobs_job_url_uidx on public.jobs (job_url);
+create unique index if not exists jobs_user_job_url_uidx on public.jobs (user_id, job_url);
 
-create unique index if not exists jobs_fingerprint_uidx on public.jobs (
+create unique index if not exists jobs_user_fingerprint_uidx on public.jobs (
+  user_id,
   lower(trim(company)),
   lower(trim(title)),
   lower(trim(location))
@@ -42,9 +55,12 @@ create unique index if not exists jobs_fingerprint_uidx on public.jobs (
 
 create index if not exists jobs_status_idx on public.jobs (status);
 create index if not exists jobs_region_idx on public.jobs (region);
+create index if not exists jobs_user_id_idx on public.jobs (user_id);
 
 create table if not exists public.search_runs (
   id uuid primary key default gen_random_uuid(),
+  user_id text not null references public.users (user_id)
+    on update cascade on delete restrict,
   query text not null,
   region text,
   results_count int not null default 0,
@@ -54,6 +70,9 @@ create table if not exists public.search_runs (
   created_at timestamptz not null default now()
 );
 
+create index if not exists search_runs_user_id_idx on public.search_runs (user_id);
+
+alter table public.users enable row level security;
 alter table public.jobs enable row level security;
 alter table public.search_runs enable row level security;
 

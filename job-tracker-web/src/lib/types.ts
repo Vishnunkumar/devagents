@@ -18,8 +18,15 @@ export type Region = (typeof REGIONS)[number];
 export type VisaSponsorship = (typeof VISA)[number];
 export type WorkMode = (typeof WORK_MODES)[number];
 
+export interface TrackerUser {
+  user_id: string;
+  name: string;
+  role: string;
+}
+
 export interface Job {
   id: string;
+  user_id: string;
   job_url: string;
   title: string;
   company: string;

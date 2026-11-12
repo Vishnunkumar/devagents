@@ -5,6 +5,8 @@ export interface Env {
   SUPABASE_SECRET_KEY?: string;
   SUPABASE_ANON_KEY?: string;
   PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
+  /** Fallback when MCP tools omit user_id (slug, e.g. vishnu-backend). */
+  DEFAULT_USER_ID?: string;
 }
 
 export const REGIONS = ["europe", "oceania", "asia", "me", "other"] as const;
@@ -28,6 +30,7 @@ export type WorkMode = (typeof WORK_MODES)[number];
 
 export interface JobRecord {
   record_id: string;
+  user_id: string;
   url: string;
   title: string;
   company: string;

@@ -4,7 +4,7 @@ Cloudflare Worker MCP that stores relocation jobs in **Supabase**. Search stays 
 
 ## Tools
 
-- `ensure_schema` — verify `jobs` and `search_runs` are reachable
+- `ensure_schema` — verify `users`, `jobs`, and `search_runs` are reachable
 - `list_jobs` — compact rows + pipeline counts (call **before** every web search)
 - `create_jobs` — insert discovered jobs; dedupe by URL and company+title+location
 - `update_job` — patch status/notes/outreach when asked in chat
@@ -12,9 +12,21 @@ Cloudflare Worker MCP that stores relocation jobs in **Supabase**. Search stays 
 
 ## Supabase setup (once)
 
-1. **SQL Editor** → run `schema.sql`
-2. **SQL Editor** → run `schema-rls-policies.sql` (required if you use the **publishable** key on the Worker)
-3. For production Worker, prefer **`SUPABASE_SERVICE_ROLE_KEY`** in Wrangler secrets (no RLS policies needed for the Worker; still use RLS + anon key on Vercel)
+1. **SQL Editor** → run `schema.sql` (new project)
+2. **Existing DB** → run `schema-migration-002-users.sql` instead
+3. **SQL Editor** → run `schema-rls-policies.sql` (required if you use the **publishable** key on the Worker)
+4. For production Worker, prefer **`SUPABASE_SERVICE_ROLE_KEY`** in Wrangler secrets (no RLS policies needed for the Worker; still use RLS + anon key on Vercel)
+
+### `public.users`
+
+| Column | Purpose |
+|--------|---------|
+| `user_id` | Primary key; same slug as `persona.json` `id` (e.g. `vishnu-backend`) |
+| `name` | Display name in UI |
+| `persona_json` | Full persona document (`jsonb`); sync from disk when you want DB-backed profile |
+| `role` | Short role family (`backend`, `qa`, …) |
+
+`jobs.user_id` and `search_runs.user_id` reference `users.user_id`. Dedupe is per user.
 
 ## Env vars
 

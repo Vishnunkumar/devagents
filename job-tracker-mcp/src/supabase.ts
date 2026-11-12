@@ -97,14 +97,22 @@ async function expectOk(res: Response): Promise<unknown> {
 }
 
 const JOB_COLUMNS =
-  "id,job_url,title,company,location,country,region,source,visa_sponsorship,visa_notes,salary,work_mode,description_snippet,status,discovered_date,status_date,applied_date,notes,outreach_message,follow_up_date,last_updated";
+  "id,user_id,job_url,title,company,location,country,region,source,visa_sponsorship,visa_notes,salary,work_mode,description_snippet,status,discovered_date,status_date,applied_date,notes,outreach_message,follow_up_date,last_updated";
 
 const LIST_COLUMNS =
-  "id,job_url,title,company,location,country,region,visa_sponsorship,work_mode,status,discovered_date,applied_date,salary,source";
+  "id,user_id,job_url,title,company,location,country,region,visa_sponsorship,work_mode,status,discovered_date,applied_date,salary,source";
+
+export function resolveUserId(env: Env, userId?: string): string {
+  const id = (userId ?? env.DEFAULT_USER_ID ?? "vishnu-backend").trim();
+  if (!id) {
+    throw new Error("user_id is required (tool argument or DEFAULT_USER_ID secret)");
+  }
+  return id;
+}
 
 export async function ensureSchema(env: Env) {
   const checks: { table: string; ok: boolean; hint?: string }[] = [];
-  for (const table of ["jobs", "search_runs"]) {
+  for (const table of ["users", "jobs", "search_runs"]) {
     const res = await supabaseFetch(env, `/${table}?select=id&limit=1`);
     const body = await parseJson(res);
     if (res.ok) {
@@ -130,7 +138,7 @@ export async function ensureSchema(env: Env) {
 
 async function listJobRows(
   env: Env,
-  filters: { status?: string; region?: string },
+  filters: { user_id: string; status?: string; region?: string },
   columns: string,
 ): Promise<DbJobRow[]> {
   const out: DbJobRow[] = [];
@@ -138,6 +146,7 @@ async function listJobRows(
   for (;;) {
     const params = new URLSearchParams();
     params.set("select", columns);
+    params.set("user_id", `eq.${filters.user_id}`);
     if (filters.status) params.set("status", `eq.${filters.status}`);
     if (filters.region) params.set("region", `eq.${filters.region}`);
     params.set("order", "discovered_date.desc");
@@ -154,14 +163,19 @@ async function listJobRows(
 
 export async function listJobs(
   env: Env,
-  filters: { status?: string; region?: string } = {},
+  filters: { user_id: string; status?: string; region?: string },
 ): Promise<JobRecord[]> {
   const rows = await listJobRows(env, filters, LIST_COLUMNS);
   return rows.map((r) => rowToJob(r));
 }
 
-function jobInsertRow(job: NewJob, today: string): Record<string, unknown> {
+function jobInsertRow(
+  job: NewJob,
+  userId: string,
+  today: string,
+): Record<string, unknown> {
   const row: Record<string, unknown> = {
+    user_id: userId,
     job_url: normalizeJobUrl(job.url),
     title: job.title.trim(),
     company: job.company.trim(),
@@ -182,8 +196,13 @@ function jobInsertRow(job: NewJob, today: string): Record<string, unknown> {
   return row;
 }
 
-export async function createJobs(env: Env, jobs: NewJob[], today: string) {
-  const existing = await listJobs(env);
+export async function createJobs(
+  env: Env,
+  userId: string,
+  jobs: NewJob[],
+  today: string,
+) {
+  const existing = await listJobs(env, { user_id: userId });
   const urls = new Set(existing.map((j) => normalizeJobUrl(j.url)).filter(Boolean));
   const prints = new Set(
     existing
@@ -212,7 +231,7 @@ export async function createJobs(env: Env, jobs: NewJob[], today: string) {
     }
     seenBatch.add(url);
     seenBatch.add(`fp:${fp}`);
-    toCreate.push(jobInsertRow({ ...job, url }, today));
+    toCreate.push(jobInsertRow({ ...job, url }, userId, today));
   }
 
   const created: JobRecord[] = [];
@@ -238,6 +257,7 @@ export async function createJobs(env: Env, jobs: NewJob[], today: string) {
 
 export async function updateJob(
   env: Env,
+  userId: string,
   lookup: { record_id?: string; url?: string },
   patch: JobPatch,
   today: string,
@@ -247,6 +267,7 @@ export async function updateJob(
     const url = normalizeJobUrl(lookup.url);
     const params = new URLSearchParams({
       select: JOB_COLUMNS,
+      user_id: `eq.${userId}`,
       job_url: `eq.${url}`,
       limit: "1",
     });
@@ -287,6 +308,7 @@ export async function updateJob(
 
 export async function logSearchRun(
   env: Env,
+  userId: string,
   input: {
     query: string;
     region?: string;
@@ -298,6 +320,7 @@ export async function logSearchRun(
   today: string,
 ) {
   const row = {
+    user_id: userId,
     query: input.query,
     region: input.region ?? null,
     results_count: input.results_count,

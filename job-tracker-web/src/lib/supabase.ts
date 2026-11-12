@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-import type { Job } from "./types";
+import type { Job, TrackerUser } from "./types";
+
+export const SELECTED_USER_STORAGE_KEY = "job-tracker-selected-user-id";
 
 let client: SupabaseClient | null = null;
 
@@ -29,10 +31,21 @@ export function getSupabase(): SupabaseClient {
   return client;
 }
 
-export async function fetchJobs(): Promise<Job[]> {
+export async function fetchUsers(): Promise<TrackerUser[]> {
+  const { data, error } = await getSupabase()
+    .from("users")
+    .select("user_id, name, role")
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as TrackerUser[];
+}
+
+export async function fetchJobs(userId: string): Promise<Job[]> {
   const { data, error } = await getSupabase()
     .from("jobs")
     .select("*")
+    .eq("user_id", userId)
     .order("discovered_date", { ascending: false });
 
   if (error) throw error;

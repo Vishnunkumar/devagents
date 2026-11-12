@@ -9,14 +9,17 @@ import {
   listJobs,
   logSearchRun,
   pipelineCounts,
+  resolveUserId,
   updateJob,
 } from "./supabase";
 import type { Env } from "./types";
 import { REGIONS, STATUSES, VISA, WORK_MODES } from "./types";
 
 export const INSTRUCTIONS =
-  "Relocation job tracker backed by Supabase. Fetch existing jobs before searching the web. " +
-  "create_jobs only inserts new discovered rows (dedupes by URL and company+title+location). " +
+  "Relocation job tracker backed by Supabase (jobs scoped by user_id / persona slug). " +
+  "Fetch existing jobs before searching the web. create_jobs only inserts new discovered rows " +
+  "(dedupes by URL and company+title+location within the same user_id). " +
+  "Pass user_id on every call (same id as persona.json id, e.g. vishnu-backend). " +
   "Do not overwrite Status, Notes, Applied date, or Outreach unless the user asked. " +
   "The user tracks the pipeline in the Vercel/Supabase UI. Search the web with the separate scraper MCP, not this server.";
 
@@ -78,13 +81,19 @@ export function registerTracker(server: McpServer, env: Env) {
         "List compact job rows plus pipeline counts. Call this before any web search to avoid duplicates. " +
         "Optional status/region filters.",
       inputSchema: {
+        user_id: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Persona slug (matches public.users.user_id)"),
         status: z.enum(STATUSES).optional(),
         region: z.enum(REGIONS).optional(),
       },
     },
-    async ({ status, region }) => {
+    async ({ user_id, status, region }) => {
       try {
-        const jobs = await listJobs(env, { status, region });
+        const userId = resolveUserId(env, user_id);
+        const jobs = await listJobs(env, { user_id: userId, status, region });
         return ok({
           counts: pipelineCounts(jobs),
           jobs: jobs.map(toCompact),
@@ -102,12 +111,18 @@ export function registerTracker(server: McpServer, env: Env) {
         "Insert newly discovered jobs. Skips duplicate Job URL or company+title+location. " +
         "Always sets Status=discovered. Max 15 jobs per call. Never use this to change pipeline status.",
       inputSchema: {
+        user_id: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Persona slug (matches public.users.user_id)"),
         jobs: z.array(newJobSchema).min(1).max(15),
       },
     },
-    async ({ jobs }) => {
+    async ({ user_id, jobs }) => {
       try {
-        const result = await createJobs(env, jobs, todayIso());
+        const userId = resolveUserId(env, user_id);
+        const result = await createJobs(env, userId, jobs, todayIso());
         return ok({
           created_count: result.created.length,
           skipped_count: result.skipped.length,
@@ -128,6 +143,11 @@ export function registerTracker(server: McpServer, env: Env) {
         "Patch one job by record_id (uuid) or Job URL. Use only when the user asks to change " +
         "status, notes, outreach, or similar. Prefer the tracker UI for routine updates.",
       inputSchema: {
+        user_id: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Persona slug when looking up by url"),
         record_id: z.string().optional(),
         url: z.string().optional(),
         status: z.enum(STATUSES).optional(),
@@ -146,8 +166,10 @@ export function registerTracker(server: McpServer, env: Env) {
         if (!args.record_id && !args.url) {
           return fail(new Error("Provide record_id or url"));
         }
+        const userId = resolveUserId(env, args.user_id);
         const job = await updateJob(
           env,
+          userId,
           { record_id: args.record_id, url: args.url },
           {
             status: args.status,
@@ -174,6 +196,11 @@ export function registerTracker(server: McpServer, env: Env) {
     {
       description: "Append one row to search_runs after a web search (query, region, counts).",
       inputSchema: {
+        user_id: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Persona slug (matches public.users.user_id)"),
         query: z.string().min(1),
         region: z.string().optional(),
         results_count: z.number().int().min(0),
@@ -183,7 +210,9 @@ export function registerTracker(server: McpServer, env: Env) {
     },
     async (args) => {
       try {
-        return ok(await logSearchRun(env, args, todayIso()));
+        const userId = resolveUserId(env, args.user_id);
+        const { user_id: _u, ...rest } = args;
+        return ok(await logSearchRun(env, userId, rest, todayIso()));
       } catch (e) {
         return fail(e);
       }

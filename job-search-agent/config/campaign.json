@@ -1,0 +1,44 @@
+{
+  "persona_user_id": "vishnu-backend",
+  "region": "europe",
+  "countries_per_run": 2,
+  "active_rotation": [
+    ["Norway", "Sweden"],
+    ["Finland", "Denmark"],
+    ["Czechia", "Romania"],
+    ["Germany", "Netherlands"],
+    ["Poland", "Ireland"],
+    ["France", "United Kingdom"]
+  ],
+  "paused_countries": ["Estonia", "Lithuania"],
+  "roles": [
+    "Java Backend Engineer",
+    "Java Developer",
+    "Backend Software Engineer",
+    "Software Engineer (Java)",
+    "Spring Boot Engineer",
+    "Payments Engineer",
+    "Distributed Systems Engineer",
+    "Platform Engineer",
+    "Integration Engineer"
+  ],
+  "experience_years": { "min": 4, "max": 8 },
+  "work_authorization": {
+    "current_location": "India",
+    "requires_employer_supported_work_authorization": true,
+    "candidate_can_pay_personal_permit_fees_where_lawful": true
+  },
+  "visa_evidence_values": ["yes", "likely", "unknown", "no"],
+  "limits": {
+    "max_qualified_jobs_per_run": 7,
+    "max_sources_per_country": 10,
+    "max_scrape_per_search": 6
+  },
+  "safety": {
+    "auto_apply": false,
+    "contact_employers": false,
+    "submit_personal_data": false,
+    "bypass_access_controls": false,
+    "save_unverified_jobs": false
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "common_discovery_sources": [
+    { "name": "Europe Visa Jobs", "url": "https://europevisajobs.com/", "purpose": "Visa-oriented discovery; verify employer source" },
+    { "name": "KoliJobs", "url": "https://kolijobs.com/jobs", "purpose": "International hiring discovery; verify employer source" },
+    { "name": "The Stack", "url": "https://jobs.trythestack.co/", "purpose": "European technology roles" },
+    { "name": "Workcamino", "url": "https://workcamino.com/en/jobs/visa-sponsorship", "purpose": "Visa sponsorship discovery; verify employer source" },
+    { "name": "Relocate.me", "url": "https://relocate.me/", "purpose": "Relocation-oriented discovery" },
+    { "name": "TopRoles Europe", "url": "https://toproles.eu/jobs", "purpose": "European technology discovery" },
+    { "name": "Arbeitnow", "url": "https://www.arbeitnow.com/", "purpose": "European job discovery" }
+  ],
+  "country_sources": {
+    "Norway": [
+      "https://arbeidsplassen.nav.no/stillinger",
+      "https://www.finn.no/job/"
+    ],
+    "Sweden": [
+      "https://arbetsformedlingen.se/platsbanken/",
+      "https://www.thelocal.se/jobs"
+    ],
+    "Finland": [
+      "https://workinfinland.com/en/",
+      "https://tyomarkkinatori.fi/en"
+    ],
+    "Denmark": [
+      "https://workindenmark.dk/",
+      "https://www.jobindex.dk/"
+    ],
+    "Czechia": [
+      "https://www.jobs.cz/",
+      "https://www.expats.cz/jobs"
+    ],
+    "Romania": [
+      "https://www.ejobs.ro/",
+      "https://www.bestjobs.eu/"
+    ],
+    "Germany": [
+      "https://www.make-it-in-germany.com/en/working-in-germany/job-listings",
+      "https://germanydevjobs.com/"
+    ],
+    "Netherlands": [
+      "https://www.iamexpat.nl/career/jobs-netherlands",
+      "https://www.togetherabroad.nl/"
+    ],
+    "Poland": [
+      "https://justjoin.it/",
+      "https://www.pracuj.pl/"
+    ],
+    "Ireland": [
+      "https://www.irishjobs.ie/",
+      "https://www.jobs.ie/"
+    ],
+    "France": [
+      "https://www.welcometothejungle.com/en",
+      "https://www.apec.fr/"
+    ],
+    "United Kingdom": [
+      "https://findajob.dwp.gov.uk/",
+      "https://www.cwjobs.co.uk/"
+    ]
+  },
+  "access_policy": "These are discovery seeds, not guaranteed reachable endpoints. If blocked, record the failure and continue through search engines and employer career pages. Never bypass blocks."
+}
